@@ -1,0 +1,10 @@
+{
+  "name": "lucky-wheel-server",
+  "version": "1.0.0",
+  "description": "Lucky Wheel with Admin Control",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^4.4.1"
+  }
+}
