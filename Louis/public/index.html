@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幸運數字抽獎系統</title>
     <style>
-        /* 基礎設定：白底黑字，清新風格 */
+        /* --- 全局設定 --- */
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            font-family: -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             text-align: center; 
             background: #ffffff; 
-            color: #333333; 
+            color: #333; 
             margin: 0; 
             padding: 20px; 
         }
@@ -24,9 +24,10 @@
             border-radius: 24px; 
             box-shadow: 0 10px 40px rgba(0,0,0,0.08); 
             border: 1px solid #f0f0f0;
+            position: relative; /* 讓右上角按鈕可以定位 */
         }
         
-        h2 { color: #1a1a1a; font-weight: 800; letter-spacing: -0.5px; }
+        h2 { color: #1a1a1a; font-weight: 800; letter-spacing: -0.5px; margin-top: 0; }
         p { color: #666; font-size: 0.95em; }
 
         input { 
@@ -37,7 +38,7 @@
         input:focus { border-color: #3498db; background: #fff; }
 
         button { 
-            width: 100%; padding: 16px; background: #000000; color: white; border: none; 
+            width: 100%; padding: 16px; background: #000; color: white; border: none; 
             border-radius: 14px; font-size: 1.1em; cursor: pointer; margin-top: 15px; font-weight: 600;
             transition: 0.2s;
         }
@@ -45,50 +46,92 @@
         button:active { transform: scale(0.97); }
         button.danger { background: #ff4757; }
 
-        /* 修改密碼小按鈕 */
         .btn-small { background: #f1f2f6; color: #57606f; font-size: 0.85em; padding: 8px 15px; width: auto; margin: 10px auto; }
+        .change-pass-box { padding: 15px; background: #f9f9f9; border-radius: 10px; margin-top: 10px; }
 
-        /* 狀態顯示 */
-        .status-box { margin: 40px 0; }
+        /* 狀態動畫 */
         .status-icon { font-size: 70px; margin-bottom: 15px; display: block; }
         .waiting { color: #ffa502; animation: pulse 2s infinite; }
         .win { color: #2ed573; }
         .lose { color: #ff4757; }
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-        /* --- 後台專用樣式 --- */
-        #adminScreen { max-width: 900px; border: none; box-shadow: none; }
+        /* --- 後台專用樣式 (重構版) --- */
+        #adminScreen { max-width: 900px; padding-top: 50px; } /* 增加頂部留白給標題 */
+
+        /* 右上角設定按鈕 */
+        .settings-container {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            z-index: 100;
+            text-align: right;
+        }
+
+        /* 隱藏 details 預設箭頭 */
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+
+        .settings-icon {
+            font-size: 1.8em;
+            cursor: pointer;
+            color: #999;
+            transition: 0.3s;
+            user-select: none;
+        }
+        .settings-icon:hover { color: #333; transform: rotate(90deg); }
+
+        /* 彈出選單 */
+        .settings-dropdown {
+            position: absolute;
+            right: 0;
+            top: 40px;
+            width: 300px;
+            background: #ffffff;
+            border: 1px solid #eee;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            z-index: 101;
+        }
         
-        /* 高級設定摺疊區塊 */
-        details {
-            background: #fafafa; padding: 20px; border-radius: 16px;
-            margin-bottom: 30px; text-align: left; border: 1px solid #eee;
-        }
-        summary { cursor: pointer; font-weight: bold; color: #2c3e50; outline: none; margin-bottom: 10px; }
+        .settings-dropdown h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .settings-dropdown label { font-size: 0.9em; font-weight: bold; color: #666; display: block; margin-top: 10px; }
 
-        /* 權重列表 - 現在放在高級設定內 */
-        .weight-list-container { max-height: 300px; overflow-y: auto; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; }
+        /* 權重列表 */
+        .weight-list-container { 
+            max-height: 200px; overflow-y: auto; margin-top: 10px; 
+            border: 1px solid #eee; border-radius: 8px;
+        }
         .player-item { 
-            padding: 10px; border-bottom: 1px solid #eee; 
-            display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;
+            padding: 8px 12px; border-bottom: 1px solid #f5f5f5; 
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;
         }
-        .weight-input { width: 60px; padding: 8px; text-align: center; border-radius: 8px; border: 1px solid #ccc; }
+        .weight-input { width: 50px; padding: 5px; margin:0; text-align: center; border: 1px solid #ddd; }
 
-        /* 超大高清轉盤容器 */
+        /* 轉盤協調性優化 */
         .wheel-wrapper {
             position: relative;
-            width: 500px; /* 加大到 500px */
+            width: 500px;
             height: 500px;
-            margin: 40px auto;
+            margin: 20px auto;
         }
-        /* 轉盤頂部的紅指針 */
+        /* 紅色指針 (優化造型) */
         .pointer {
-            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 20px solid transparent; border-right: 20px solid transparent;
-            border-top: 40px solid #ff4757; z-index: 10;
+            position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 50px;
+            background: #ff4757;
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));
+            z-index: 20;
         }
-        canvas { width: 100%; height: 100%; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1)); }
+        /* 轉盤陰影 */
+        canvas { 
+            width: 100%; height: 100%; 
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.1)); 
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
@@ -150,37 +193,42 @@
     </div>
 
     <div id="adminScreen" class="container hidden">
-        <h2 style="font-size: 2.2em; margin-bottom: 5px;">👑 後台管理系統</h2>
-        <p>管理參加者名單與調整權重</p>
         
-        <details>
-            <summary>🛠️ 高級設定 (權重調整 / 範圍 / 重置)</summary>
-            <div style="padding-top: 10px;">
-                <label style="font-weight:bold;">數字範圍限制：</label>
-                <div style="display:flex; gap:10px; margin: 10px 0;">
-                    <input type="number" id="adminMin" placeholder="最小">
-                    <input type="number" id="adminMax" placeholder="最大">
-                </div>
-                <button onclick="updateConfig()" style="background:#747d8c; margin-bottom: 20px;">更新數字範圍</button>
+        <div class="settings-container">
+            <details>
+                <summary class="settings-icon" title="高級設定">⚙️</summary>
                 
-                <label style="font-weight:bold;">中獎權重管理 (數字越大機率越高)：</label>
-                <div id="weightList" class="weight-list-container">
+                <div class="settings-dropdown">
+                    <h4>🛠️ 高級設定</h4>
+                    
+                    <label>數字範圍限制：</label>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="adminMin" placeholder="最小" style="width:50%;">
+                        <input type="number" id="adminMax" placeholder="最大" style="width:50%;">
                     </div>
+                    <button onclick="updateConfig()" style="background:#747d8c; padding:10px; font-size:0.9em; margin-top:5px;">更新範圍</button>
+                    
+                    <label>中獎權重管理：</label>
+                    <div id="weightList" class="weight-list-container">
+                        </div>
 
-                <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ddd;">
-                <p style="color:#ff4757; font-weight:bold; margin-bottom: 5px;">危險操作</p>
-                <button onclick="resetGame()" class="danger">🗑️ 重置遊戲 (清除所有參加者數據)</button>
-            </div>
-        </details>
+                    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+                    <button onclick="resetGame()" class="danger" style="padding:10px; font-size:0.9em; margin-top:0;">🗑️ 重置遊戲</button>
+                </div>
+            </details>
+        </div>
+
+        <h2 style="font-size: 2.2em; margin-bottom: 5px;">👑 後台管理系統</h2>
+        <p style="color:#999;">目前參加人數：<span id="playerCount" style="color:#333; font-weight:bold;">0</span> 人</p>
 
         <div class="wheel-wrapper">
             <div class="pointer"></div>
             <canvas id="wheelCanvas" width="1000" height="1000"></canvas>
         </div>
         
-        <button onclick="spin()" style="background: #ffa502; font-size: 1.6em; padding: 20px; box-shadow: 0 8px 20px rgba(255, 165, 2, 0.4);">🎯 開始旋轉開獎</button>
-        
-        <p style="margin-top: 20px; color: #999;">目前參加人數：<span id="playerCount">0</span> 人</p>
+        <button onclick="spin()" style="background: #ffa502; font-size: 1.6em; padding: 20px; box-shadow: 0 8px 20px rgba(255, 165, 2, 0.4); border-radius: 50px;">
+            🎯 開始開獎
+        </button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -283,7 +331,6 @@
             drawWheel();
         });
 
-        // 權重列表顯示在高級設定中
         function renderWeightList() {
             const list = document.getElementById('weightList');
             list.innerHTML = '';
@@ -301,7 +348,7 @@
             });
         }
 
-        // --- 核心轉盤 (1000px 高清版) ---
+        // --- 協調性優化版轉盤 ---
         let canvas, ctx, currentRotation = 0;
         function initWheel() {
             canvas = document.getElementById('wheelCanvas');
@@ -313,33 +360,62 @@
             if(!ctx) return;
             const players = Object.values(playersData);
             const count = players.length;
-            ctx.clearRect(0,0,1000,1000);
+            const size = 1000;
+            const center = size / 2;
+            const radius = size / 2 - 20; // 留邊距
+
+            ctx.clearRect(0,0,size,size);
             
+            // 外框裝飾
+            ctx.beginPath();
+            ctx.arc(center, center, radius + 10, 0, Math.PI*2);
+            ctx.fillStyle = "#333";
+            ctx.fill();
+
             if (count === 0) {
-                ctx.fillStyle = "#eee"; ctx.beginPath(); ctx.arc(500,500,480,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#ccc"; ctx.font = "30px Arial"; ctx.textAlign = "center";
-                ctx.fillText("等待玩家加入名單...", 500, 500);
+                ctx.beginPath(); ctx.arc(center,center,radius,0,Math.PI*2); ctx.fillStyle = "#eee"; ctx.fill();
+                ctx.fillStyle = "#ccc"; ctx.font = "40px Arial"; ctx.textAlign = "center";
+                ctx.fillText("等待玩家加入...", center, center);
                 return;
             }
 
             const arc = (Math.PI*2)/count;
-            const colors = ["#ff4757","#3742fa","#2ed573","#ffa502","#70a1ff","#1e90ff","#a29bfe"];
+            const colors = ["#ff4757","#2ed573","#ffa502","#3742fa","#1e90ff","#70a1ff","#a29bfe"];
             
             players.forEach((p, i) => {
                 ctx.beginPath();
                 ctx.fillStyle = colors[i % colors.length];
-                ctx.moveTo(500,500);
-                ctx.arc(500,500,480, currentRotation + i*arc, currentRotation + (i+1)*arc);
+                ctx.moveTo(center,center);
+                ctx.arc(center,center,radius, currentRotation + i*arc, currentRotation + (i+1)*arc);
                 ctx.fill();
                 
-                // 畫文字
+                // 文字
                 ctx.save();
-                ctx.translate(500,500);
+                ctx.translate(center,center);
                 ctx.rotate(currentRotation + i*arc + arc/2);
-                ctx.textAlign = "right"; ctx.fillStyle = "#fff"; ctx.font = "bold 35px Arial";
-                ctx.fillText(p.number, 450, 15);
+                ctx.textAlign = "right"; ctx.fillStyle = "#fff"; ctx.font = "bold 40px Arial";
+                ctx.fillText(p.number, radius - 40, 15);
                 ctx.restore();
             });
+
+            // --- 關鍵：中心裝飾蓋 (Hub) ---
+            // 這讓轉盤看起來像是有軸承的，解決「中間尖尖的」不協調感
+            ctx.beginPath();
+            ctx.arc(center, center, 60, 0, Math.PI*2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(center, center, 50, 0, Math.PI*2);
+            ctx.fillStyle = "#333";
+            ctx.fill();
+
+            // 中心文字
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 30px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("GO", center, center);
         }
 
         function spin() { socket.emit('adminSpin'); }
@@ -370,9 +446,13 @@
             requestAnimationFrame(animate);
         });
 
-        socket.on('gameReset', () => { if(myUsername && !ADMIN_ACCOUNTS.includes(myUsername)) location.reload(); });
+        socket.on('gameReset', () => { if(myUsername && !["louis_chen_0705_1","louis_chen_0705_2"].includes(myUsername)) location.reload(); });
         socket.on('configUpdate', (c) => {
             document.getElementById('rangeHint').innerText = `範圍限制：${c.minNumber} ~ ${c.maxNumber}`;
+            if(document.getElementById('adminMin')) {
+                document.getElementById('adminMin').value = c.minNumber;
+                document.getElementById('adminMax').value = c.maxNumber;
+            }
         });
     </script>
 </body>
