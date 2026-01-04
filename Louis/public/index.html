@@ -20,6 +20,7 @@
         button:active { transform: scale(0.95); }
         button.danger { background: #ff4757; }
         button.secondary { background: #f1f2f6; color: #333; }
+        button.logout { background: #eee; color: #555; font-size: 0.8rem; width: auto; padding: 5px 10px; position: absolute; top: 15px; right: 15px; z-index: 10; }
         
         .wheel-wrapper {
             position: relative; width: 100%; max-width: 450px; aspect-ratio: 1 / 1; margin: 20px auto;
@@ -92,13 +93,16 @@
     </div>
 
     <div id="submitScreen" class="container hidden">
+        <button class="logout" onclick="logout()">登出</button>
         <h2 id="welcomeText"></h2>
+        
         <button onclick="togglePass('changePassSection')" style="background:#eee; color:#555; font-size:0.9em; width:auto;">🔑 改密碼</button>
         <div id="changePassSection" class="change-pass-box hidden">
             <input type="password" id="oldPass" placeholder="舊密碼">
             <input type="password" id="newPass" placeholder="新密碼">
             <button onclick="changePass('oldPass','newPass')" style="background:#2ed573;">確認修改</button>
         </div>
+        
         <div style="margin-top:20px;">
             <p id="instructionText" style="margin-bottom:5px; font-weight:bold;"></p>
             <div id="dynamicInputs" class="number-inputs-container"></div>
@@ -108,23 +112,31 @@
     </div>
 
     <div id="resultScreen" class="container hidden">
+        <button class="logout" onclick="logout()">登出</button>
+        
         <div id="waitingView" class="hidden">
             <span class="status-icon">⏳</span>
             <h2>已參加！</h2>
             <p id="mySelection" style="font-weight:bold; font-size:1.1em;"></p>
             <p>等待開獎...</p>
         </div>
+        
         <div id="winView" class="hidden">
             <span class="status-icon">🏆</span>
             <h2 style="color:#2ed573;">恭喜中獎！</h2>
+            <p>請截圖給 Louis</p>
         </div>
+        
         <div id="loseView" class="hidden">
             <span class="status-icon">😢</span>
             <h2 style="color:#ff4757;">遺憾沒中...</h2>
+            <p>下次好運！</p>
         </div>
     </div>
 
     <div id="adminScreen" class="container hidden" style="max-width: 600px;">
+        <button class="logout" onclick="logout()">登出</button>
+        
         <div class="settings-container">
             <details>
                 <summary>⚙️</summary>
@@ -170,24 +182,47 @@
         let currentWinnerId = null;
         let selectionCount = 1;
 
-        // --- 登入 ---
+        // --- 自動登入邏輯 ---
+        window.onload = function() {
+            const savedUser = localStorage.getItem('ig_user');
+            const savedPass = localStorage.getItem('ig_pass');
+            if (savedUser && savedPass) {
+                // 如果有紀錄，自動填入並嘗試登入
+                document.getElementById('loginUser').value = savedUser;
+                document.getElementById('loginPass').value = savedPass;
+                socket.emit('userLogin', { username: savedUser, password: savedPass });
+            }
+        };
+
         function doLogin() {
             const u = document.getElementById('loginUser').value;
             const p = document.getElementById('loginPass').value;
             socket.emit('userLogin', { username: u, password: p });
         }
 
+        function logout() {
+            localStorage.removeItem('ig_user');
+            localStorage.removeItem('ig_pass');
+            location.reload();
+        }
+
         socket.on('loginSuccess', (data) => {
             myUsername = data.username;
             amISuperAdmin = data.isSuperAdmin;
+            
+            // 登入成功，儲存到瀏覽器
+            localStorage.setItem('ig_user', document.getElementById('loginUser').value);
+            localStorage.setItem('ig_pass', document.getElementById('loginPass').value);
+
             document.getElementById('loginScreen').classList.add('hidden');
             
             if (data.isAdmin) {
                 document.getElementById('adminScreen').classList.remove('hidden');
                 initWheel();
             } else {
-                if (data.hasSubmitted) showResult(data.submittedNumbers, data.lastWinner);
-                else {
+                if (data.hasSubmitted) {
+                    showResult(data.submittedNumbers, data.lastWinner);
+                } else {
                     document.getElementById('submitScreen').classList.remove('hidden');
                     document.getElementById('welcomeText').innerText = `Hi, ${myUsername}`;
                 }
@@ -195,7 +230,13 @@
             }
         });
 
-        socket.on('loginError', (m) => { document.getElementById('loginError').innerText = m; document.getElementById('loginError').style.display='block'; });
+        socket.on('loginError', (m) => { 
+            document.getElementById('loginError').innerText = m; 
+            document.getElementById('loginError').style.display='block'; 
+            // 如果自動登入失敗，清除舊的 localStorage
+            localStorage.removeItem('ig_user');
+            localStorage.removeItem('ig_pass');
+        });
 
         function showResult(numbers, winner) {
             document.getElementById('submitScreen').classList.add('hidden');
@@ -203,12 +244,22 @@
             const numsStr = Array.isArray(numbers) ? numbers.join(', ') : numbers;
             document.getElementById('mySelection').innerText = `你的選擇: ${numsStr}`;
             
+            // 決定顯示哪一個畫面 (等待 vs 中獎 vs 沒中)
             if(winner) {
                 document.getElementById('waitingView').classList.add('hidden');
-                document.getElementById(winner === myUsername ? 'winView' : 'loseView').classList.remove('hidden');
-                if(winner === myUsername) launchConfetti();
+                if (winner === myUsername) {
+                    document.getElementById('winView').classList.remove('hidden');
+                    document.getElementById('loseView').classList.add('hidden');
+                    launchConfetti();
+                } else {
+                    document.getElementById('winView').classList.add('hidden');
+                    document.getElementById('loseView').classList.remove('hidden');
+                }
             } else {
+                // 還沒開獎
                 document.getElementById('waitingView').classList.remove('hidden');
+                document.getElementById('winView').classList.add('hidden');
+                document.getElementById('loseView').classList.add('hidden');
             }
         }
 
@@ -226,7 +277,10 @@
         function changePass(oid, nid) {
             socket.emit('changePassword', { username: myUsername, oldPass: document.getElementById(oid).value, newPass: document.getElementById(nid).value });
         }
-        socket.on('changePasswordSuccess', () => alert('修改成功'));
+        socket.on('changePasswordSuccess', () => {
+            alert('修改成功！請重新登入');
+            logout();
+        });
         socket.on('changePasswordError', (m) => alert(m));
 
         // --- 後台 ---
@@ -266,9 +320,8 @@
             });
         }
 
-        // --- 🔥 核心轉盤：拆分切片邏輯 🔥 ---
+        // --- 核心轉盤 ---
         let ctx, currentRotation = 0;
-        // 暫存目前的「切片清單」給動畫用
         let wheelSlices = []; 
 
         function initWheel() { ctx = document.getElementById('wheelCanvas').getContext('2d'); drawWheel(); }
@@ -279,7 +332,6 @@
             const size = 1000; const center = 500; const radius = 480;
             ctx.clearRect(0,0,size,size);
 
-            // 1. 扁平化：把所有玩家的每個數字都拆成一個獨立的 slice
             wheelSlices = [];
             players.forEach(p => {
                 let nums = Array.isArray(p.numbers) ? p.numbers : [p.number];
@@ -303,7 +355,6 @@
             const arc = (Math.PI*2)/count;
             const colors = ["#ff4757","#2ed573","#ffa502","#3742fa","#1e90ff","#70a1ff","#a29bfe"];
             
-            // 2. 畫切片
             wheelSlices.forEach((slice, i) => {
                 ctx.beginPath(); ctx.fillStyle = colors[i%colors.length];
                 ctx.moveTo(center,center); ctx.arc(center,center,radius, currentRotation + i*arc, currentRotation + (i+1)*arc); ctx.fill();
@@ -312,7 +363,6 @@
                 ctx.fillText(slice.number, radius-40, 15); ctx.restore();
             });
 
-            // Hub
             ctx.beginPath(); ctx.arc(center,center,60,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill();
             ctx.beginPath(); ctx.arc(center,center,50,0,Math.PI*2); ctx.fillStyle="#333"; ctx.fill();
             ctx.fillStyle="#fff"; ctx.font="bold 30px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("GO", center, center);
@@ -321,15 +371,12 @@
         function spin() { socket.emit('adminSpin'); }
         
         socket.on('spinResult', (d) => {
-            // d 包含 winnerId, winnerName, winningNumber
-            // 找出是「哪一片」贏了 (要同時對應 ID 和 數字)
             const idx = wheelSlices.findIndex(s => s.id === d.winnerId && s.number == d.winningNumber);
             
             if (idx === -1) return alert("錯誤：找不到中獎切片");
 
             const count = wheelSlices.length;
             const arc = (Math.PI*2)/count;
-            // 計算目標角度
             const target = (3/2 * Math.PI) - (idx * arc + arc/2) + (10 * Math.PI*2);
             let start;
             
@@ -343,11 +390,25 @@
                     currentRotation=target; drawWheel(); 
                     document.getElementById('winSound').play().catch(e=>{});
                     launchConfetti();
+                    
+                    // 🔥 關鍵修復：動畫結束後，所有玩家介面都要更新成「結果」
+                    // 如果我是管理員
                     if (!document.getElementById('adminScreen').classList.contains('hidden')) {
                         currentWinnerId = d.winnerId;
                         document.getElementById('modalWinnerName').innerText = `${d.winnerName}`;
                         document.getElementById('modalWinnerNum').innerText = `中獎號碼: ${d.winningNumber}`;
                         document.getElementById('winnerModal').classList.remove('hidden');
+                    } else {
+                        // 如果我是玩家，更新我的畫面
+                        // 這裡我們直接傳 null 作為數字列表，因為玩家已經知道自己選了什麼，重點是更新 winner
+                        // 但為了保險，我們只更新 UI 狀態
+                        if (d.winnerName === myUsername) {
+                            document.getElementById('waitingView').classList.add('hidden');
+                            document.getElementById('winView').classList.remove('hidden');
+                        } else {
+                            document.getElementById('waitingView').classList.add('hidden');
+                            document.getElementById('loseView').classList.remove('hidden');
+                        }
                     }
                 }
             }
@@ -372,12 +433,15 @@
         }
 
         socket.on('gameReset', () => { if(!["louis_chen_0705","louis_chen_0705_1","louis_chen_0705_2"].includes(myUsername)) location.reload(); });
+        
         socket.on('configUpdate', (c) => { 
             selectionCount = c.selectionCount || 1;
             document.getElementById('rangeHint').innerText = `${c.minNumber}~${c.maxNumber}`;
             document.getElementById('instructionText').innerText = `請選擇 ${selectionCount} 個數字:`;
             
             const container = document.getElementById('dynamicInputs');
+            // 只有在還沒生成過，或者數量改變時才重新生成，避免輸入到一半被洗掉
+            // 但為了簡單起見，這裡先保持重繪
             container.innerHTML = '';
             for(let i=0; i<selectionCount; i++) {
                 const input = document.createElement('input');
