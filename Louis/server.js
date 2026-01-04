@@ -64,6 +64,8 @@ loadData().then(() => {
             if (users[username] && users[username] === password) {
                 const isAdmin = ALL_ADMINS.includes(username);
                 const isSuperAdmin = SUPER_ADMINS.includes(username);
+                
+                // 檢查該帳號是否已在遊戲中
                 let existingPlayer = Object.values(players).find(p => p.username === username);
 
                 socket.emit('loginSuccess', { 
@@ -73,7 +75,7 @@ loadData().then(() => {
                     isDefaultPass: (password === DEFAULT_PASS),
                     hasSubmitted: !!existingPlayer,
                     submittedNumbers: existingPlayer ? existingPlayer.numbers : [],
-                    lastWinner: gameConfig.lastWinner
+                    lastWinner: gameConfig.lastWinner // 把目前的贏家資訊傳回去
                 });
 
                 if (isAdmin) socket.emit('adminUpdate', players);
@@ -103,7 +105,6 @@ loadData().then(() => {
             }
 
             let cleanNumbers = [];
-            // 取得目前場上所有被選走的數字 (排除自己)
             let allTakenNumbers = [];
             for (let p of Object.values(players)) {
                 if (p.username !== username) {
@@ -120,7 +121,7 @@ loadData().then(() => {
                     return socket.emit('submitError', `數字 ${num} 超出範圍`);
                 if (allTakenNumbers.includes(num)) return socket.emit('submitError', `數字 ${num} 已被選走`);
                 if (cleanNumbers.includes(num)) return socket.emit('submitError', `重複填寫 (${num})`);
-                cleanNumbers.push(num); // 存數字 (int) 或字串看需求，這裡存 int
+                cleanNumbers.push(num); 
             }
 
             players[socket.id] = { id: socket.id, username, numbers: cleanNumbers, weight: 1 };
@@ -150,27 +151,23 @@ loadData().then(() => {
             io.emit('gameReset'); io.emit('adminUpdate', players); saveData();
         });
 
-        // 🔥 關鍵修改：拆分號碼進行抽獎 🔥
         socket.on('adminSpin', () => {
-            // 1. 把所有玩家的每個號碼都拆成一張獨立的「彩券 (Entry)」
+            // 拆分切片邏輯
             let entries = [];
             for (let p of Object.values(players)) {
-                // 相容性處理：如果只有單個 number 轉成陣列
                 let nums = Array.isArray(p.numbers) ? p.numbers : [p.number];
-                
                 for (let n of nums) {
                     entries.push({
                         playerId: p.id,
                         username: p.username,
-                        number: n,          // 這張彩券代表的數字
-                        weight: p.weight || 1 // 繼承玩家的權重
+                        number: n,
+                        weight: p.weight || 1
                     });
                 }
             }
 
             if (entries.length === 0) return;
 
-            // 2. 根據權重抽獎
             let totalWeight = entries.reduce((acc, e) => acc + e.weight, 0);
             let random = Math.random() * totalWeight;
             let winnerEntry = null;
@@ -185,7 +182,6 @@ loadData().then(() => {
 
             if (winnerEntry) {
                 gameConfig.lastWinner = winnerEntry.username;
-                // 回傳贏家資訊，包含「是哪個數字贏了」
                 io.emit('spinResult', { 
                     winnerId: winnerEntry.playerId, 
                     winnerName: winnerEntry.username,
