@@ -14,14 +14,25 @@
             border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; position: relative;
         }
         
-        h2 { margin-top: 0; color: #222; }
+        h2 { margin-top: 20px; color: #222; } /* 增加上邊距避免被按鈕擋住 */
         input { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; font-size: 1rem; }
         button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition:0.2s; }
         button:active { transform: scale(0.95); }
         button.danger { background: #ff4757; }
         button.secondary { background: #f1f2f6; color: #333; }
-        button.logout { background: #eee; color: #555; font-size: 0.8rem; width: auto; padding: 5px 10px; position: absolute; top: 15px; right: 15px; z-index: 10; }
         
+        /* --- 修正：登出按鈕改到左上角 --- */
+        button.logout { 
+            background: #f1f2f6; color: #555; font-size: 0.8rem; 
+            width: auto; padding: 8px 15px; border-radius: 20px;
+            position: absolute; top: 20px; left: 20px; z-index: 50; 
+        }
+
+        /* --- 設定按鈕維持在右上角 --- */
+        .settings-container { 
+            position: absolute; top: 20px; right: 20px; z-index: 50; text-align: right; 
+        }
+
         .wheel-wrapper {
             position: relative; width: 100%; max-width: 450px; aspect-ratio: 1 / 1; margin: 20px auto;
         }
@@ -52,7 +63,6 @@
         .winner-num { font-size: 1.2em; color: #3498db; margin-bottom: 20px; font-weight: bold; }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 
-        .settings-container { position: absolute; top: 20px; right: 20px; z-index: 50; text-align: right; }
         details > summary { list-style: none; font-size: 1.5rem; cursor: pointer; color: #999; }
         details > summary::-webkit-details-marker { display: none; }
         .settings-dropdown {
@@ -182,12 +192,10 @@
         let currentWinnerId = null;
         let selectionCount = 1;
 
-        // --- 自動登入邏輯 ---
         window.onload = function() {
             const savedUser = localStorage.getItem('ig_user');
             const savedPass = localStorage.getItem('ig_pass');
             if (savedUser && savedPass) {
-                // 如果有紀錄，自動填入並嘗試登入
                 document.getElementById('loginUser').value = savedUser;
                 document.getElementById('loginPass').value = savedPass;
                 socket.emit('userLogin', { username: savedUser, password: savedPass });
@@ -210,7 +218,6 @@
             myUsername = data.username;
             amISuperAdmin = data.isSuperAdmin;
             
-            // 登入成功，儲存到瀏覽器
             localStorage.setItem('ig_user', document.getElementById('loginUser').value);
             localStorage.setItem('ig_pass', document.getElementById('loginPass').value);
 
@@ -233,7 +240,6 @@
         socket.on('loginError', (m) => { 
             document.getElementById('loginError').innerText = m; 
             document.getElementById('loginError').style.display='block'; 
-            // 如果自動登入失敗，清除舊的 localStorage
             localStorage.removeItem('ig_user');
             localStorage.removeItem('ig_pass');
         });
@@ -244,7 +250,6 @@
             const numsStr = Array.isArray(numbers) ? numbers.join(', ') : numbers;
             document.getElementById('mySelection').innerText = `你的選擇: ${numsStr}`;
             
-            // 決定顯示哪一個畫面 (等待 vs 中獎 vs 沒中)
             if(winner) {
                 document.getElementById('waitingView').classList.add('hidden');
                 if (winner === myUsername) {
@@ -256,7 +261,6 @@
                     document.getElementById('loseView').classList.remove('hidden');
                 }
             } else {
-                // 還沒開獎
                 document.getElementById('waitingView').classList.remove('hidden');
                 document.getElementById('winView').classList.add('hidden');
                 document.getElementById('loseView').classList.add('hidden');
@@ -372,7 +376,6 @@
         
         socket.on('spinResult', (d) => {
             const idx = wheelSlices.findIndex(s => s.id === d.winnerId && s.number == d.winningNumber);
-            
             if (idx === -1) return alert("錯誤：找不到中獎切片");
 
             const count = wheelSlices.length;
@@ -391,17 +394,12 @@
                     document.getElementById('winSound').play().catch(e=>{});
                     launchConfetti();
                     
-                    // 🔥 關鍵修復：動畫結束後，所有玩家介面都要更新成「結果」
-                    // 如果我是管理員
                     if (!document.getElementById('adminScreen').classList.contains('hidden')) {
                         currentWinnerId = d.winnerId;
                         document.getElementById('modalWinnerName').innerText = `${d.winnerName}`;
                         document.getElementById('modalWinnerNum').innerText = `中獎號碼: ${d.winningNumber}`;
                         document.getElementById('winnerModal').classList.remove('hidden');
                     } else {
-                        // 如果我是玩家，更新我的畫面
-                        // 這裡我們直接傳 null 作為數字列表，因為玩家已經知道自己選了什麼，重點是更新 winner
-                        // 但為了保險，我們只更新 UI 狀態
                         if (d.winnerName === myUsername) {
                             document.getElementById('waitingView').classList.add('hidden');
                             document.getElementById('winView').classList.remove('hidden');
@@ -440,8 +438,6 @@
             document.getElementById('instructionText').innerText = `請選擇 ${selectionCount} 個數字:`;
             
             const container = document.getElementById('dynamicInputs');
-            // 只有在還沒生成過，或者數量改變時才重新生成，避免輸入到一半被洗掉
-            // 但為了簡單起見，這裡先保持重繪
             container.innerHTML = '';
             for(let i=0; i<selectionCount; i++) {
                 const input = document.createElement('input');
