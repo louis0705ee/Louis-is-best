@@ -3,325 +3,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幸運數字抽獎系統</title>
+    <title>幸運數字抽獎</title>
     <style>
-        /* --- 全局設定 --- */
-        body { 
-            font-family: -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            text-align: center; 
-            background: #ffffff; 
-            color: #333; 
-            margin: 0; 
-            padding: 20px; 
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; background: #fff; color: #333; margin: 0; padding: 20px; }
         .hidden { display: none !important; }
         
         .container { 
-            max-width: 500px; 
-            margin: 0 auto; 
-            background: #ffffff; 
-            padding: 40px; 
-            border-radius: 24px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08); 
-            border: 1px solid #f0f0f0;
-            position: relative; /* 讓右上角按鈕可以定位 */
+            max-width: 500px; margin: 0 auto; background: #fff; padding: 20px; 
+            border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; position: relative;
         }
         
-        h2 { color: #1a1a1a; font-weight: 800; letter-spacing: -0.5px; margin-top: 0; }
-        p { color: #666; font-size: 0.95em; }
-
-        input { 
-            width: 90%; padding: 15px; margin: 10px 0; border-radius: 12px; 
-            border: 2px solid #eee; background: #fafafa; color: #333; font-size: 1.1em; 
-            outline: none; transition: 0.3s;
-        }
-        input:focus { border-color: #3498db; background: #fff; }
-
-        button { 
-            width: 100%; padding: 16px; background: #000; color: white; border: none; 
-            border-radius: 14px; font-size: 1.1em; cursor: pointer; margin-top: 15px; font-weight: 600;
-            transition: 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        button:active { transform: scale(0.97); }
+        h2 { margin-top: 0; color: #222; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; font-size: 1rem; }
+        button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
         button.danger { background: #ff4757; }
-
-        .btn-small { background: #f1f2f6; color: #57606f; font-size: 0.85em; padding: 8px 15px; width: auto; margin: 10px auto; }
-        .change-pass-box { padding: 15px; background: #f9f9f9; border-radius: 10px; margin-top: 10px; }
-
-        /* 狀態動畫 */
-        .status-icon { font-size: 70px; margin-bottom: 15px; display: block; }
-        .waiting { color: #ffa502; animation: pulse 2s infinite; }
-        .win { color: #2ed573; }
-        .lose { color: #ff4757; }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
-
-        /* --- 後台專用樣式 (重構版) --- */
-        #adminScreen { max-width: 900px; padding-top: 50px; } /* 增加頂部留白給標題 */
-
-        /* 右上角設定按鈕 */
-        .settings-container {
-            position: absolute;
-            top: 20px;
-            right: 25px;
-            z-index: 100;
-            text-align: right;
-        }
-
-        /* 隱藏 details 預設箭頭 */
-        details > summary { list-style: none; }
-        details > summary::-webkit-details-marker { display: none; }
-
-        .settings-icon {
-            font-size: 1.8em;
-            cursor: pointer;
-            color: #999;
-            transition: 0.3s;
-            user-select: none;
-        }
-        .settings-icon:hover { color: #333; transform: rotate(90deg); }
-
-        /* 彈出選單 */
-        .settings-dropdown {
-            position: absolute;
-            right: 0;
-            top: 40px;
-            width: 300px;
-            background: #ffffff;
-            border: 1px solid #eee;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: left;
-            z-index: 101;
-        }
         
-        .settings-dropdown h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .settings-dropdown label { font-size: 0.9em; font-weight: bold; color: #666; display: block; margin-top: 10px; }
-
-        /* 權重列表 */
-        .weight-list-container { 
-            max-height: 200px; overflow-y: auto; margin-top: 10px; 
-            border: 1px solid #eee; border-radius: 8px;
-        }
-        .player-item { 
-            padding: 8px 12px; border-bottom: 1px solid #f5f5f5; 
-            display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;
-        }
-        .weight-input { width: 50px; padding: 5px; margin:0; text-align: center; border: 1px solid #ddd; }
-
-        /* 轉盤協調性優化 */
+        /* 轉盤容器修正：響應式正方形 */
         .wheel-wrapper {
             position: relative;
-            width: 500px;
-            height: 500px;
+            width: 100%;            /* 寬度佔滿容器 */
+            max-width: 450px;       /* 最大不超過 450px */
+            aspect-ratio: 1 / 1;    /* 強制正方形比例 */
             margin: 20px auto;
+            height: auto;           /* 高度自動 */
         }
-        /* 紅色指針 (優化造型) */
+        canvas { width: 100%; height: 100%; border-radius: 50%; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1)); }
+        
         .pointer {
-            position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
-            width: 40px; height: 50px;
-            background: #ff4757;
-            clip-path: polygon(50% 100%, 0 0, 100% 0);
-            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));
-            z-index: 20;
+            position: absolute; top: -5%; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 50px; background: #ff4757;
+            clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 10;
         }
-        /* 轉盤陰影 */
-        canvas { 
-            width: 100%; height: 100%; 
-            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.1)); 
-            border-radius: 50%;
+
+        /* 右上角設定按鈕 */
+        .settings-container { position: absolute; top: 20px; right: 20px; z-index: 50; text-align: right; }
+        details > summary { list-style: none; font-size: 1.5rem; cursor: pointer; color: #999; }
+        details > summary::-webkit-details-marker { display: none; }
+        
+        .settings-dropdown {
+            position: absolute; right: 0; top: 40px; width: 280px;
+            background: #fff; border: 1px solid #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-radius: 12px; padding: 15px; text-align: left; z-index: 100;
         }
+        
+        .player-item { padding: 8px 0; border-bottom: 1px solid #f5f5f5; display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; }
+        .weight-input { width: 40px; padding: 5px; text-align: center; border: 1px solid #ddd; margin: 0; }
+        
+        .status-icon { font-size: 60px; display: block; margin-bottom: 10px; }
+        .change-pass-box { background: #f9f9f9; padding: 15px; border-radius: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="loginScreen" class="container">
-        <h2 style="font-size: 2em; margin-bottom: 10px;">🧧 抽獎登入</h2>
-        <p>請使用 IG 帳號登入系統</p>
+        <h2>🧧 抽獎登入</h2>
         <input type="text" id="loginUser" placeholder="IG 帳號">
-        <input type="password" id="loginPass" placeholder="初始密碼: Aa12345678">
-        <button onclick="doLogin()">登入系統</button>
-        <p id="loginError" style="color: #ff4757; margin-top: 15px; font-weight: bold; display:none;"></p>
+        <input type="password" id="loginPass" placeholder="密碼">
+        <button onclick="doLogin()">登入</button>
+        <p id="loginError" style="color:red; display:none;"></p>
     </div>
 
     <div id="submitScreen" class="container hidden">
-        <h2>🎲 選擇幸運數字</h2>
-        <h3 id="welcomeText" style="color: #3498db; margin-top: 0;"></h3>
-        
-        <button class="btn-small" onclick="togglePassBox('changePassSection')">🔑 修改密碼</button>
+        <h2 id="welcomeText"></h2>
+        <button onclick="togglePass('changePassSection')" style="background:#eee; color:#555; font-size:0.9em; width:auto;">🔑 改密碼</button>
         <div id="changePassSection" class="change-pass-box hidden">
             <input type="password" id="oldPass" placeholder="舊密碼">
             <input type="password" id="newPass" placeholder="新密碼">
-            <button onclick="doChangePass()" style="background:#2ed573; margin-bottom: 10px;">確認修改</button>
+            <button onclick="changePass('oldPass','newPass')" style="background:#2ed573;">確認修改</button>
         </div>
-
-        <div style="margin-top: 30px;">
-            <input type="number" id="luckyNumber" placeholder="填寫你的數字">
-            <p id="rangeHint" style="font-size: 0.9em; color: #888;"></p>
-            <button onclick="submitNum()" style="background: #3498db;">確認送出，不能更改</button>
-            <p id="submitError" style="color: #ff4757; margin-top: 10px; display:none;"></p>
+        <div style="margin-top:20px;">
+            <input type="number" id="luckyNumber" placeholder="幸運數字">
+            <p id="rangeHint" style="color:#888; font-size:0.9em;"></p>
+            <button onclick="submitNum()" style="background:#3498db;">確認送出</button>
         </div>
     </div>
 
     <div id="resultScreen" class="container hidden">
         <div id="waitingView" class="hidden">
             <span class="status-icon">⏳</span>
-            <h2 class="waiting">已成功投遞！</h2>
-            <p id="mySelection" style="font-size: 1.2em; color: #333;"></p>
-            <p>請留意 Louis 的開獎實況</p>
-            
-            <button class="btn-small" onclick="togglePassBox('changePassSectionRes')">🔑 修改密碼</button>
-            <div id="changePassSectionRes" class="change-pass-box hidden">
-                <input type="password" id="oldPass2" placeholder="舊密碼">
-                <input type="password" id="newPass2" placeholder="新密碼">
-                <button onclick="doChangePass2()" style="background:#2ed573;">確認修改</button>
-            </div>
+            <h2>已參加！</h2>
+            <p id="mySelection"></p>
+            <p>等待開獎...</p>
         </div>
-
         <div id="winView" class="hidden">
             <span class="status-icon">🏆</span>
-            <h2 class="win">恭喜！你中獎了！</h2>
-            <p>請立即截圖並私訊 Louis</p>
+            <h2 style="color:#2ed573;">恭喜中獎！</h2>
         </div>
-
         <div id="loseView" class="hidden">
             <span class="status-icon">😢</span>
-            <h2 class="lose">很遺憾沒有中獎</h2>
-            <p>感謝參與，下次會更幸運的！</p>
+            <h2 style="color:#ff4757;">遺憾沒中...</h2>
         </div>
     </div>
 
-    <div id="adminScreen" class="container hidden">
-        
+    <div id="adminScreen" class="container hidden" style="max-width: 600px;">
         <div class="settings-container">
             <details>
-                <summary class="settings-icon" title="高級設定">⚙️</summary>
-                
+                <summary>⚙️</summary>
                 <div class="settings-dropdown">
-                    <h4>🛠️ 高級設定</h4>
-                    
-                    <label>數字範圍限制：</label>
+                    <h4 style="margin:0 0 10px 0;">高級設定</h4>
+                    <label>數字範圍:</label>
                     <div style="display:flex; gap:5px;">
-                        <input type="number" id="adminMin" placeholder="最小" style="width:50%;">
-                        <input type="number" id="adminMax" placeholder="最大" style="width:50%;">
+                        <input type="number" id="adminMin" placeholder="Min">
+                        <input type="number" id="adminMax" placeholder="Max">
                     </div>
-                    <button onclick="updateConfig()" style="background:#747d8c; padding:10px; font-size:0.9em; margin-top:5px;">更新範圍</button>
+                    <button onclick="updateConfig()" style="background:#747d8c; font-size:0.9em;">更新範圍</button>
                     
-                    <label>中獎權重管理：</label>
-                    <div id="weightList" class="weight-list-container">
-                        </div>
+                    <div id="weightSection">
+                        <label style="margin-top:10px; display:block;">權重管理:</label>
+                        <div id="weightList" style="max-height:150px; overflow-y:auto; border:1px solid #eee; border-radius:5px; padding:5px;"></div>
+                    </div>
 
-                    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
-                    <button onclick="resetGame()" class="danger" style="padding:10px; font-size:0.9em; margin-top:0;">🗑️ 重置遊戲</button>
+                    <hr>
+                    <button onclick="resetGame()" class="danger" style="font-size:0.9em;">🗑️ 重置遊戲</button>
                 </div>
             </details>
         </div>
 
-        <h2 style="font-size: 2.2em; margin-bottom: 5px;">👑 後台管理系統</h2>
-        <p style="color:#999;">目前參加人數：<span id="playerCount" style="color:#333; font-weight:bold;">0</span> 人</p>
+        <h2>👑 後台管理</h2>
+        <p>人數: <span id="playerCount">0</span></p>
 
         <div class="wheel-wrapper">
             <div class="pointer"></div>
             <canvas id="wheelCanvas" width="1000" height="1000"></canvas>
         </div>
         
-        <button onclick="spin()" style="background: #ffa502; font-size: 1.6em; padding: 20px; box-shadow: 0 8px 20px rgba(255, 165, 2, 0.4); border-radius: 50px;">
-            🎯 開始開獎
-        </button>
+        <button onclick="spin()" style="background:#ffa502; font-size:1.5em; border-radius:50px; box-shadow:0 5px 15px rgba(255,165,2,0.4);">🎯 開始開獎</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myUsername = "";
+        let myUsername = "", amISuperAdmin = false;
         let playersData = {};
-        
-        // --- 登入邏輯 ---
+
         function doLogin() {
-            const user = document.getElementById('loginUser').value;
-            const pass = document.getElementById('loginPass').value;
-            socket.emit('userLogin', { username: user, password: pass });
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPass').value;
+            socket.emit('userLogin', { username: u, password: p });
         }
 
         socket.on('loginSuccess', (data) => {
             myUsername = data.username;
+            amISuperAdmin = data.isSuperAdmin; // 存下來，判斷是否顯示輸入框
             document.getElementById('loginScreen').classList.add('hidden');
             
             if (data.isAdmin) {
                 document.getElementById('adminScreen').classList.remove('hidden');
+                // 如果不是最高管理員，隱藏權重設定區塊 (雖然能看名單，但不能改)
+                if (!amISuperAdmin) {
+                     // 這裡選擇不隱藏整個區塊，而是在生成列表時變成純文字，
+                     // 這樣普通管理員還是可以看到大家的選擇
+                }
                 initWheel();
             } else {
-                if (data.hasSubmitted) {
-                    showResultScreen(data.submittedNumber, data.lastWinner);
-                } else {
+                if (data.hasSubmitted) showResult(data.submittedNumber, data.lastWinner);
+                else {
                     document.getElementById('submitScreen').classList.remove('hidden');
-                    document.getElementById('welcomeText').innerText = `你好，${myUsername}`;
+                    document.getElementById('welcomeText').innerText = `Hi, ${myUsername}`;
                 }
-                if(data.isDefaultPass) {
-                     document.getElementById('changePassSection').classList.remove('hidden');
-                }
+                if(data.isDefaultPass) document.getElementById('changePassSection').classList.remove('hidden');
             }
         });
 
-        socket.on('loginError', (msg) => {
-            const el = document.getElementById('loginError');
-            el.innerText = msg; el.style.display = 'block';
-        });
+        socket.on('loginError', (m) => { document.getElementById('loginError').innerText = m; document.getElementById('loginError').style.display='block'; });
 
-        function showResultScreen(number, lastWinner) {
+        function showResult(num, winner) {
             document.getElementById('submitScreen').classList.add('hidden');
             document.getElementById('resultScreen').classList.remove('hidden');
-            document.getElementById('mySelection').innerText = `你的幸運數字：${number}`;
-
-            if (lastWinner) {
+            document.getElementById('mySelection').innerText = `你的數字: ${num}`;
+            if(winner) {
                 document.getElementById('waitingView').classList.add('hidden');
-                if (lastWinner === myUsername) {
-                    document.getElementById('winView').classList.remove('hidden');
-                } else {
-                    document.getElementById('loseView').classList.remove('hidden');
-                }
+                document.getElementById(winner === myUsername ? 'winView' : 'loseView').classList.remove('hidden');
             } else {
                 document.getElementById('waitingView').classList.remove('hidden');
             }
         }
 
-        // --- 提交與密碼功能 ---
-        function submitNum() {
-            const num = document.getElementById('luckyNumber').value;
-            socket.emit('submitNumber', { username: myUsername, number: num });
-        }
-        socket.on('submitSuccess', (data) => showResultScreen(data.number, null));
-        socket.on('submitError', (msg) => { alert(msg); });
+        function submitNum() { socket.emit('submitNumber', { username: myUsername, number: document.getElementById('luckyNumber').value }); }
+        socket.on('submitSuccess', (d) => showResult(d.number, null));
+        socket.on('submitError', (m) => alert(m));
 
-        function togglePassBox(id) { document.getElementById(id).classList.toggle('hidden'); }
-        function doChangePass() { sendPass('oldPass', 'newPass'); }
-        function doChangePass2() { sendPass('oldPass2', 'newPass2'); }
-        function sendPass(oid, nid) {
-            const op = document.getElementById(oid).value;
-            const np = document.getElementById(nid).value;
-            socket.emit('changePassword', { username: myUsername, oldPass: op, newPass: np });
+        function togglePass(id) { document.getElementById(id).classList.toggle('hidden'); }
+        function changePass(oid, nid) {
+            socket.emit('changePassword', { username: myUsername, oldPass: document.getElementById(oid).value, newPass: document.getElementById(nid).value });
         }
-        socket.on('changePasswordSuccess', () => alert("修改成功！"));
+        socket.on('changePasswordSuccess', () => alert('修改成功'));
         socket.on('changePasswordError', (m) => alert(m));
 
-        // --- 後台邏輯 ---
-        function updateConfig() {
-            socket.emit('adminSetConfig', { 
-                min: document.getElementById('adminMin').value, 
-                max: document.getElementById('adminMax').value 
-            });
-            alert("已同步範圍限制");
-        }
-
-        function resetGame() {
-            if(confirm("確定要重置嗎？這將清除目前所有參加者的幸運數字！")) {
-                socket.emit('adminResetGame');
-            }
-        }
-
-        function setWeight(sid, val) {
-            socket.emit('adminUpdateWeight', { targetSocketId: sid, newWeight: val });
+        // 後台
+        function updateConfig() { socket.emit('adminSetConfig', { min: document.getElementById('adminMin').value, max: document.getElementById('adminMax').value }); alert('已更新'); }
+        function resetGame() { if(confirm('確定重置?')) socket.emit('adminResetGame'); }
+        
+        function setWeight(targetId, val) {
+            if(!amISuperAdmin) return alert("權限不足：只有最高管理員可以調權重");
+            socket.emit('adminUpdateWeight', { adminName: myUsername, targetSocketId: targetId, newWeight: val });
         }
 
         socket.on('adminUpdate', (players) => {
@@ -335,47 +210,35 @@
             const list = document.getElementById('weightList');
             list.innerHTML = '';
             const plist = Object.values(playersData);
-            if(plist.length === 0) list.innerHTML = '<p style="text-align:center; color:#ccc;">尚無參加者</p>';
+            if(plist.length === 0) return list.innerHTML = '<small>尚無玩家</small>';
+            
             plist.forEach(p => {
                 const div = document.createElement('div');
                 div.className = 'player-item';
-                div.innerHTML = `
-                    <span><b>${p.username}</b> (選號: ${p.number})</span>
-                    <input type="number" class="weight-input" value="${p.weight || 1}" 
-                           onchange="setWeight('${p.id}', this.value)">
-                `;
+                // 關鍵：只有 Super Admin 顯示輸入框，其他人顯示文字
+                let weightDisplay = amISuperAdmin 
+                    ? `<input type="number" class="weight-input" value="${p.weight||1}" onchange="setWeight('${p.id}', this.value)">`
+                    : `<span>權重:${p.weight||1}</span>`;
+                
+                div.innerHTML = `<span><b>${p.username}</b> (${p.number})</span> ${weightDisplay}`;
                 list.appendChild(div);
             });
         }
 
-        // --- 協調性優化版轉盤 ---
-        let canvas, ctx, currentRotation = 0;
-        function initWheel() {
-            canvas = document.getElementById('wheelCanvas');
-            ctx = canvas.getContext('2d');
-            drawWheel();
-        }
-
+        // 轉盤繪製
+        let ctx, currentRotation = 0;
+        function initWheel() { ctx = document.getElementById('wheelCanvas').getContext('2d'); drawWheel(); }
+        
         function drawWheel() {
             if(!ctx) return;
             const players = Object.values(playersData);
             const count = players.length;
-            const size = 1000;
-            const center = size / 2;
-            const radius = size / 2 - 20; // 留邊距
-
+            const size = 1000; const center = 500; const radius = 480;
             ctx.clearRect(0,0,size,size);
-            
-            // 外框裝飾
-            ctx.beginPath();
-            ctx.arc(center, center, radius + 10, 0, Math.PI*2);
-            ctx.fillStyle = "#333";
-            ctx.fill();
 
+            // 中心裝飾 (讓轉盤看起來不尖銳)
             if (count === 0) {
-                ctx.beginPath(); ctx.arc(center,center,radius,0,Math.PI*2); ctx.fillStyle = "#eee"; ctx.fill();
-                ctx.fillStyle = "#ccc"; ctx.font = "40px Arial"; ctx.textAlign = "center";
-                ctx.fillText("等待玩家加入...", center, center);
+                ctx.beginPath(); ctx.arc(center,center,radius,0,Math.PI*2); ctx.fillStyle="#eee"; ctx.fill();
                 return;
             }
 
@@ -383,77 +246,42 @@
             const colors = ["#ff4757","#2ed573","#ffa502","#3742fa","#1e90ff","#70a1ff","#a29bfe"];
             
             players.forEach((p, i) => {
-                ctx.beginPath();
-                ctx.fillStyle = colors[i % colors.length];
-                ctx.moveTo(center,center);
-                ctx.arc(center,center,radius, currentRotation + i*arc, currentRotation + (i+1)*arc);
-                ctx.fill();
-                
-                // 文字
-                ctx.save();
-                ctx.translate(center,center);
-                ctx.rotate(currentRotation + i*arc + arc/2);
+                ctx.beginPath(); ctx.fillStyle = colors[i%colors.length];
+                ctx.moveTo(center,center); ctx.arc(center,center,radius, currentRotation + i*arc, currentRotation + (i+1)*arc); ctx.fill();
+                ctx.save(); ctx.translate(center,center); ctx.rotate(currentRotation + i*arc + arc/2);
                 ctx.textAlign = "right"; ctx.fillStyle = "#fff"; ctx.font = "bold 40px Arial";
-                ctx.fillText(p.number, radius - 40, 15);
-                ctx.restore();
+                ctx.fillText(p.number, radius-40, 15); ctx.restore();
             });
 
-            // --- 關鍵：中心裝飾蓋 (Hub) ---
-            // 這讓轉盤看起來像是有軸承的，解決「中間尖尖的」不協調感
-            ctx.beginPath();
-            ctx.arc(center, center, 60, 0, Math.PI*2);
-            ctx.fillStyle = "#ffffff";
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.arc(center, center, 50, 0, Math.PI*2);
-            ctx.fillStyle = "#333";
-            ctx.fill();
-
-            // 中心文字
-            ctx.fillStyle = "#fff";
-            ctx.font = "bold 30px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("GO", center, center);
+            // 中心蓋子 (Hub)
+            ctx.beginPath(); ctx.arc(center,center,60,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill();
+            ctx.beginPath(); ctx.arc(center,center,50,0,Math.PI*2); ctx.fillStyle="#333"; ctx.fill();
+            ctx.fillStyle="#fff"; ctx.font="bold 30px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("GO", center, center);
         }
 
         function spin() { socket.emit('adminSpin'); }
-
-        socket.on('spinResult', (data) => {
-            if (document.getElementById('adminScreen').classList.contains('hidden')) return;
-            
+        socket.on('spinResult', (d) => {
             const players = Object.values(playersData);
-            const idx = players.findIndex(p => p.id === data.winnerId);
+            const idx = players.findIndex(p => p.id === d.winnerId);
             const arc = (Math.PI*2)/players.length;
-            const rounds = 8 + Math.random()*5;
-            const target = (3/2 * Math.PI) - (idx * arc + arc/2) + (rounds * Math.PI*2);
-            
-            let start = null;
-            function animate(time) {
-                if(!start) start = time;
-                const prog = (time - start) / 6000;
-                if(prog < 1) {
-                    const ease = 1 - Math.pow(1 - prog, 4);
-                    currentRotation = ease * target;
-                    drawWheel();
-                    requestAnimationFrame(animate);
-                } else {
-                    currentRotation = target; drawWheel();
-                    alert("🎉 開獎結果：中獎者是 " + data.winnerName);
-                }
+            const target = (3/2 * Math.PI) - (idx * arc + arc/2) + (10 * Math.PI*2);
+            let start;
+            function animate(t) {
+                if(!start) start=t;
+                const p = (t-start)/6000;
+                if(p<1) { currentRotation = (1 - Math.pow(1-p, 4)) * target; drawWheel(); requestAnimationFrame(animate); }
+                else { currentRotation=target; drawWheel(); alert(`中獎者: ${d.winnerName}`); }
             }
             requestAnimationFrame(animate);
         });
 
-        socket.on('gameReset', () => { if(myUsername && !["louis_chen_0705_1","louis_chen_0705_2"].includes(myUsername)) location.reload(); });
-        socket.on('configUpdate', (c) => {
-            document.getElementById('rangeHint').innerText = `範圍限制：${c.minNumber} ~ ${c.maxNumber}`;
-            if(document.getElementById('adminMin')) {
-                document.getElementById('adminMin').value = c.minNumber;
-                document.getElementById('adminMax').value = c.maxNumber;
-            }
+        socket.on('gameReset', () => { if(!ALL_ADMINS.includes(myUsername)) location.reload(); });
+        socket.on('configUpdate', (c) => { 
+            document.getElementById('rangeHint').innerText = `${c.minNumber}~${c.maxNumber}`;
+            if(document.getElementById('adminMin')) { document.getElementById('adminMin').value=c.minNumber; document.getElementById('adminMax').value=c.maxNumber; }
         });
+        
+        const ALL_ADMINS = ["louis_chen_0705", "louis_chen_0705_1", "louis_chen_0705_2"];
     </script>
 </body>
 </html>
