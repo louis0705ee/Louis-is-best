@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>幸運數字抽獎</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; background: #fff; color: #333; margin: 0; padding: 20px; }
         .hidden { display: none !important; }
@@ -15,31 +16,46 @@
         
         h2 { margin-top: 0; color: #222; }
         input { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; font-size: 1rem; }
-        button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition:0.2s; }
+        button:active { transform: scale(0.95); }
         button.danger { background: #ff4757; }
+        button.secondary { background: #f1f2f6; color: #333; }
         
-        /* 轉盤容器修正：響應式正方形 */
         .wheel-wrapper {
-            position: relative;
-            width: 100%;            /* 寬度佔滿容器 */
-            max-width: 450px;       /* 最大不超過 450px */
-            aspect-ratio: 1 / 1;    /* 強制正方形比例 */
-            margin: 20px auto;
-            height: auto;           /* 高度自動 */
+            position: relative; width: 100%; max-width: 450px; aspect-ratio: 1 / 1; margin: 20px auto;
         }
         canvas { width: 100%; height: 100%; border-radius: 50%; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1)); }
-        
         .pointer {
             position: absolute; top: -5%; left: 50%; transform: translateX(-50%);
             width: 40px; height: 50px; background: #ff4757;
             clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 10;
         }
 
-        /* 右上角設定按鈕 */
+        /* 數字輸入框區域 */
+        .number-inputs-container {
+            display: grid; gap: 10px; margin: 15px 0;
+            /* 自動適應列數 */
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        }
+        .number-inputs-container input { width: 100%; margin: 0; box-sizing: border-box; text-align: center; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 999; display: flex;
+            justify-content: center; align-items: center;
+        }
+        .modal {
+            background: white; padding: 30px; border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center;
+            width: 90%; max-width: 400px;
+        }
+        .winner-name { font-size: 2em; color: #2ed573; margin: 10px 0; font-weight: 800; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
         .settings-container { position: absolute; top: 20px; right: 20px; z-index: 50; text-align: right; }
         details > summary { list-style: none; font-size: 1.5rem; cursor: pointer; color: #999; }
         details > summary::-webkit-details-marker { display: none; }
-        
         .settings-dropdown {
             position: absolute; right: 0; top: 40px; width: 280px;
             background: #fff; border: 1px solid #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
@@ -48,12 +64,25 @@
         
         .player-item { padding: 8px 0; border-bottom: 1px solid #f5f5f5; display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; }
         .weight-input { width: 40px; padding: 5px; text-align: center; border: 1px solid #ddd; margin: 0; }
-        
         .status-icon { font-size: 60px; display: block; margin-bottom: 10px; }
         .change-pass-box { background: #f9f9f9; padding: 15px; border-radius: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
+
+    <audio id="winSound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto"></audio>
+
+    <div id="winnerModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>🎉 恭喜中獎 🎉</h3>
+            <div id="modalWinnerName" class="winner-name">USER</div>
+            <p>處理中獎者：</p>
+            <div class="modal-actions">
+                <button class="danger" onclick="deleteWinner()">🗑️ 刪除</button>
+                <button class="secondary" onclick="keepWinner()">↩️ 保留</button>
+            </div>
+        </div>
+    </div>
 
     <div id="loginScreen" class="container">
         <h2>🧧 抽獎登入</h2>
@@ -71,8 +100,12 @@
             <input type="password" id="newPass" placeholder="新密碼">
             <button onclick="changePass('oldPass','newPass')" style="background:#2ed573;">確認修改</button>
         </div>
+        
         <div style="margin-top:20px;">
-            <input type="number" id="luckyNumber" placeholder="幸運數字">
+            <p id="instructionText" style="margin-bottom:5px; font-weight:bold;"></p>
+            
+            <div id="dynamicInputs" class="number-inputs-container"></div>
+
             <p id="rangeHint" style="color:#888; font-size:0.9em;"></p>
             <button onclick="submitNum()" style="background:#3498db;">確認送出</button>
         </div>
@@ -82,7 +115,7 @@
         <div id="waitingView" class="hidden">
             <span class="status-icon">⏳</span>
             <h2>已參加！</h2>
-            <p id="mySelection"></p>
+            <p id="mySelection" style="font-weight:bold; font-size:1.1em;"></p>
             <p>等待開獎...</p>
         </div>
         <div id="winView" class="hidden">
@@ -100,19 +133,22 @@
             <details>
                 <summary>⚙️</summary>
                 <div class="settings-dropdown">
-                    <h4 style="margin:0 0 10px 0;">高級設定</h4>
-                    <label>數字範圍:</label>
+                    <h4>高級設定</h4>
+                    <label>範圍設定:</label>
                     <div style="display:flex; gap:5px;">
                         <input type="number" id="adminMin" placeholder="Min">
                         <input type="number" id="adminMax" placeholder="Max">
                     </div>
-                    <button onclick="updateConfig()" style="background:#747d8c; font-size:0.9em;">更新範圍</button>
+                    
+                    <label style="margin-top:10px;">每人選擇數量:</label>
+                    <input type="number" id="adminCount" value="1" min="1">
+                    
+                    <button onclick="updateConfig()" style="background:#747d8c; font-size:0.9em;">更新設定</button>
                     
                     <div id="weightSection">
                         <label style="margin-top:10px; display:block;">權重管理:</label>
                         <div id="weightList" style="max-height:150px; overflow-y:auto; border:1px solid #eee; border-radius:5px; padding:5px;"></div>
                     </div>
-
                     <hr>
                     <button onclick="resetGame()" class="danger" style="font-size:0.9em;">🗑️ 重置遊戲</button>
                 </div>
@@ -135,6 +171,8 @@
         const socket = io();
         let myUsername = "", amISuperAdmin = false;
         let playersData = {};
+        let currentWinnerId = null;
+        let selectionCount = 1; // 預設1個
 
         function doLogin() {
             const u = document.getElementById('loginUser').value;
@@ -144,20 +182,16 @@
 
         socket.on('loginSuccess', (data) => {
             myUsername = data.username;
-            amISuperAdmin = data.isSuperAdmin; // 存下來，判斷是否顯示輸入框
+            amISuperAdmin = data.isSuperAdmin;
             document.getElementById('loginScreen').classList.add('hidden');
             
             if (data.isAdmin) {
                 document.getElementById('adminScreen').classList.remove('hidden');
-                // 如果不是最高管理員，隱藏權重設定區塊 (雖然能看名單，但不能改)
-                if (!amISuperAdmin) {
-                     // 這裡選擇不隱藏整個區塊，而是在生成列表時變成純文字，
-                     // 這樣普通管理員還是可以看到大家的選擇
-                }
                 initWheel();
             } else {
-                if (data.hasSubmitted) showResult(data.submittedNumber, data.lastWinner);
-                else {
+                if (data.hasSubmitted) {
+                    showResult(data.submittedNumbers, data.lastWinner);
+                } else {
                     document.getElementById('submitScreen').classList.remove('hidden');
                     document.getElementById('welcomeText').innerText = `Hi, ${myUsername}`;
                 }
@@ -167,20 +201,33 @@
 
         socket.on('loginError', (m) => { document.getElementById('loginError').innerText = m; document.getElementById('loginError').style.display='block'; });
 
-        function showResult(num, winner) {
+        function showResult(numbers, winner) {
             document.getElementById('submitScreen').classList.add('hidden');
             document.getElementById('resultScreen').classList.remove('hidden');
-            document.getElementById('mySelection').innerText = `你的數字: ${num}`;
+            // 顯示所有數字
+            const numsStr = Array.isArray(numbers) ? numbers.join(', ') : numbers;
+            document.getElementById('mySelection').innerText = `你的選擇: ${numsStr}`;
+            
             if(winner) {
                 document.getElementById('waitingView').classList.add('hidden');
                 document.getElementById(winner === myUsername ? 'winView' : 'loseView').classList.remove('hidden');
+                if(winner === myUsername) launchConfetti();
             } else {
                 document.getElementById('waitingView').classList.remove('hidden');
             }
         }
 
-        function submitNum() { socket.emit('submitNumber', { username: myUsername, number: document.getElementById('luckyNumber').value }); }
-        socket.on('submitSuccess', (d) => showResult(d.number, null));
+        // 提交數字 (收集所有輸入框)
+        function submitNum() { 
+            const inputs = document.querySelectorAll('#dynamicInputs input');
+            let values = [];
+            inputs.forEach(input => {
+                if(input.value) values.push(input.value);
+            });
+            socket.emit('submitNumber', { username: myUsername, numbers: values }); 
+        }
+        
+        socket.on('submitSuccess', (d) => showResult(d.numbers, null));
         socket.on('submitError', (m) => alert(m));
 
         function togglePass(id) { document.getElementById(id).classList.toggle('hidden'); }
@@ -190,12 +237,19 @@
         socket.on('changePasswordSuccess', () => alert('修改成功'));
         socket.on('changePasswordError', (m) => alert(m));
 
-        // 後台
-        function updateConfig() { socket.emit('adminSetConfig', { min: document.getElementById('adminMin').value, max: document.getElementById('adminMax').value }); alert('已更新'); }
+        // --- 後台設定 ---
+        function updateConfig() { 
+            socket.emit('adminSetConfig', { 
+                min: document.getElementById('adminMin').value, 
+                max: document.getElementById('adminMax').value,
+                count: document.getElementById('adminCount').value
+            }); 
+            alert('設定已更新'); 
+        }
         function resetGame() { if(confirm('確定重置?')) socket.emit('adminResetGame'); }
         
         function setWeight(targetId, val) {
-            if(!amISuperAdmin) return alert("權限不足：只有最高管理員可以調權重");
+            if(!amISuperAdmin) return alert("只有最高管理員可以調權重");
             socket.emit('adminUpdateWeight', { adminName: myUsername, targetSocketId: targetId, newWeight: val });
         }
 
@@ -215,17 +269,18 @@
             plist.forEach(p => {
                 const div = document.createElement('div');
                 div.className = 'player-item';
-                // 關鍵：只有 Super Admin 顯示輸入框，其他人顯示文字
                 let weightDisplay = amISuperAdmin 
                     ? `<input type="number" class="weight-input" value="${p.weight||1}" onchange="setWeight('${p.id}', this.value)">`
                     : `<span>權重:${p.weight||1}</span>`;
                 
-                div.innerHTML = `<span><b>${p.username}</b> (${p.number})</span> ${weightDisplay}`;
+                // 顯示多個號碼
+                const numsStr = Array.isArray(p.numbers) ? p.numbers.join(',') : p.number;
+                div.innerHTML = `<span><b>${p.username}</b> [${numsStr}]</span> ${weightDisplay}`;
                 list.appendChild(div);
             });
         }
 
-        // 轉盤繪製
+        // --- 轉盤 ---
         let ctx, currentRotation = 0;
         function initWheel() { ctx = document.getElementById('wheelCanvas').getContext('2d'); drawWheel(); }
         
@@ -236,7 +291,6 @@
             const size = 1000; const center = 500; const radius = 480;
             ctx.clearRect(0,0,size,size);
 
-            // 中心裝飾 (讓轉盤看起來不尖銳)
             if (count === 0) {
                 ctx.beginPath(); ctx.arc(center,center,radius,0,Math.PI*2); ctx.fillStyle="#eee"; ctx.fill();
                 return;
@@ -249,39 +303,90 @@
                 ctx.beginPath(); ctx.fillStyle = colors[i%colors.length];
                 ctx.moveTo(center,center); ctx.arc(center,center,radius, currentRotation + i*arc, currentRotation + (i+1)*arc); ctx.fill();
                 ctx.save(); ctx.translate(center,center); ctx.rotate(currentRotation + i*arc + arc/2);
-                ctx.textAlign = "right"; ctx.fillStyle = "#fff"; ctx.font = "bold 40px Arial";
-                ctx.fillText(p.number, radius-40, 15); ctx.restore();
+                ctx.textAlign = "right"; ctx.fillStyle = "#fff"; ctx.font = "bold 30px Arial";
+                
+                // 在轉盤上顯示號碼 (太長就截斷)
+                let numsStr = Array.isArray(p.numbers) ? p.numbers.join(',') : p.number;
+                if(numsStr.length > 8) numsStr = numsStr.substring(0,8) + '..';
+                
+                ctx.fillText(numsStr, radius-40, 15); ctx.restore();
             });
 
-            // 中心蓋子 (Hub)
             ctx.beginPath(); ctx.arc(center,center,60,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill();
             ctx.beginPath(); ctx.arc(center,center,50,0,Math.PI*2); ctx.fillStyle="#333"; ctx.fill();
             ctx.fillStyle="#fff"; ctx.font="bold 30px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("GO", center, center);
         }
 
         function spin() { socket.emit('adminSpin'); }
+        
         socket.on('spinResult', (d) => {
             const players = Object.values(playersData);
             const idx = players.findIndex(p => p.id === d.winnerId);
             const arc = (Math.PI*2)/players.length;
             const target = (3/2 * Math.PI) - (idx * arc + arc/2) + (10 * Math.PI*2);
             let start;
+            
             function animate(t) {
                 if(!start) start=t;
                 const p = (t-start)/6000;
-                if(p<1) { currentRotation = (1 - Math.pow(1-p, 4)) * target; drawWheel(); requestAnimationFrame(animate); }
-                else { currentRotation=target; drawWheel(); alert(`中獎者: ${d.winnerName}`); }
+                if(p<1) { 
+                    currentRotation = (1 - Math.pow(1-p, 4)) * target; 
+                    drawWheel(); requestAnimationFrame(animate); 
+                } else { 
+                    currentRotation=target; drawWheel(); 
+                    document.getElementById('winSound').play().catch(e=>{});
+                    launchConfetti();
+                    if (!document.getElementById('adminScreen').classList.contains('hidden')) {
+                        currentWinnerId = d.winnerId;
+                        document.getElementById('modalWinnerName').innerText = `${d.winnerName}`;
+                        document.getElementById('winnerModal').classList.remove('hidden');
+                    }
+                }
             }
             requestAnimationFrame(animate);
         });
 
-        socket.on('gameReset', () => { if(!ALL_ADMINS.includes(myUsername)) location.reload(); });
-        socket.on('configUpdate', (c) => { 
-            document.getElementById('rangeHint').innerText = `${c.minNumber}~${c.maxNumber}`;
-            if(document.getElementById('adminMin')) { document.getElementById('adminMin').value=c.minNumber; document.getElementById('adminMax').value=c.maxNumber; }
-        });
+        function deleteWinner() {
+            if(confirm("刪除此人?")) {
+                socket.emit('adminDeletePlayer', currentWinnerId);
+                document.getElementById('winnerModal').classList.add('hidden');
+            }
+        }
+        function keepWinner() { document.getElementById('winnerModal').classList.add('hidden'); }
+
+        function launchConfetti() {
+            var duration = 3000; var end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        socket.on('gameReset', () => { if(!["louis_chen_0705","louis_chen_0705_1","louis_chen_0705_2"].includes(myUsername)) location.reload(); });
         
-        const ALL_ADMINS = ["louis_chen_0705", "louis_chen_0705_1", "louis_chen_0705_2"];
+        // 接收設定更新，動態生成輸入框
+        socket.on('configUpdate', (c) => { 
+            selectionCount = c.selectionCount || 1;
+            document.getElementById('rangeHint').innerText = `${c.minNumber}~${c.maxNumber}`;
+            document.getElementById('instructionText').innerText = `請選擇 ${selectionCount} 個幸運數字:`;
+
+            // 動態生成輸入框
+            const container = document.getElementById('dynamicInputs');
+            container.innerHTML = '';
+            for(let i=0; i<selectionCount; i++) {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.placeholder = `數字 ${i+1}`;
+                container.appendChild(input);
+            }
+
+            if(document.getElementById('adminMin')) { 
+                document.getElementById('adminMin').value=c.minNumber; 
+                document.getElementById('adminMax').value=c.maxNumber;
+                document.getElementById('adminCount').value=selectionCount;
+            }
+        });
     </script>
 </body>
 </html>
