@@ -14,21 +14,19 @@
             border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; position: relative;
         }
         
-        h2 { margin-top: 20px; color: #222; } /* 增加上邊距避免被按鈕擋住 */
+        h2 { margin-top: 20px; color: #222; }
         input { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; font-size: 1rem; }
         button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition:0.2s; }
         button:active { transform: scale(0.95); }
         button.danger { background: #ff4757; }
         button.secondary { background: #f1f2f6; color: #333; }
         
-        /* --- 修正：登出按鈕改到左上角 --- */
         button.logout { 
             background: #f1f2f6; color: #555; font-size: 0.8rem; 
             width: auto; padding: 8px 15px; border-radius: 20px;
             position: absolute; top: 20px; left: 20px; z-index: 50; 
         }
 
-        /* --- 設定按鈕維持在右上角 --- */
         .settings-container { 
             position: absolute; top: 20px; right: 20px; z-index: 50; text-align: right; 
         }
@@ -59,9 +57,11 @@
             box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center;
             width: 90%; max-width: 400px;
         }
-        .winner-name { font-size: 2em; color: #2ed573; margin: 10px 0; font-weight: 800; }
-        .winner-num { font-size: 1.2em; color: #3498db; margin-bottom: 20px; font-weight: bold; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .winner-title { font-size: 1.5em; margin-bottom: 10px; }
+        .winner-name { font-size: 2.5em; color: #2ed573; margin: 10px 0; font-weight: 800; }
+        .winner-num { font-size: 1.3em; color: #3498db; margin-bottom: 5px; font-weight: bold; }
+        .winner-msg { color: #555; font-size: 1.1em; margin-bottom: 25px; font-weight: 500; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
 
         details > summary { list-style: none; font-size: 1.5rem; cursor: pointer; color: #999; }
         details > summary::-webkit-details-marker { display: none; }
@@ -83,17 +83,19 @@
 
     <div id="winnerModal" class="modal-overlay hidden">
         <div class="modal">
-            <h3>🎉 恭喜中獎 🎉</h3>
+            <div class="winner-title">🎉 恭喜中獎 🎉</div>
+            
             <div id="modalWinnerName" class="winner-name">USER</div>
             <div id="modalWinnerNum" class="winner-num">中獎號碼: </div>
-            <p>處理中獎者：</p>
+            
+            <div class="winner-msg">請私信截圖給我 謝謝！</div>
+            
             <div class="modal-actions">
                 <button class="danger" onclick="deleteWinner()">🗑️ 刪除</button>
                 <button class="secondary" onclick="keepWinner()">↩️ 保留</button>
             </div>
         </div>
     </div>
-
     <div id="loginScreen" class="container">
         <h2>🧧 抽獎登入</h2>
         <input type="text" id="loginUser" placeholder="IG 帳號">
@@ -134,7 +136,7 @@
         <div id="winView" class="hidden">
             <span class="status-icon">🏆</span>
             <h2 style="color:#2ed573;">恭喜中獎！</h2>
-            <p>🎉恭喜你🎉請私信截圖給我謝謝
+            <p>請私信截圖給我 謝謝！</p>
         </div>
         
         <div id="loseView" class="hidden">
@@ -455,5 +457,3 @@
     </script>
 </body>
 </html>
-
-
