@@ -14,7 +14,7 @@
             border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; position: relative;
         }
         
-        h2 { margin-top: 20px; color: #222; }
+        h2 { margin-top: 20px; color: #222; margin-bottom: 10px; }
         input { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; font-size: 1rem; }
         button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition:0.2s; }
         button:active { transform: scale(0.95); }
@@ -31,9 +31,40 @@
             position: absolute; top: 20px; right: 20px; z-index: 50; text-align: right; 
         }
 
-        .wheel-wrapper {
-            position: relative; width: 100%; max-width: 450px; aspect-ratio: 1 / 1; margin: 20px auto;
+        /* --- 獎品展示區 (Gallery) --- */
+        .gallery-wrapper {
+            margin: 10px 0 20px 0;
+            display: none; /* 預設隱藏，有圖片才顯示 */
         }
+        .gallery-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+            scroll-behavior: smooth;
+            /* 隱藏捲軸但保留功能 */
+            scrollbar-width: none; 
+        }
+        .gallery-container::-webkit-scrollbar { display: none; }
+        
+        .gallery-item {
+            flex: 0 0 auto;
+            width: 250px; /* 每張圖片寬度 */
+            height: 250px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #eee;
+            position: relative;
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 轉盤 */
+        .wheel-wrapper { position: relative; width: 100%; max-width: 450px; aspect-ratio: 1 / 1; margin: 20px auto; }
         canvas { width: 100%; height: 100%; border-radius: 50%; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1)); }
         .pointer {
             position: absolute; top: -5%; left: 50%; transform: translateX(-50%);
@@ -41,26 +72,24 @@
             clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 10;
         }
 
-        .number-inputs-container {
-            display: grid; gap: 10px; margin: 15px 0;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-        }
+        .number-inputs-container { display: grid; gap: 10px; margin: 15px 0; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
         .number-inputs-container input { width: 100%; margin: 0; box-sizing: border-box; text-align: center; }
 
+        /* 彈窗共用樣式 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 999; display: flex;
-            justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.6); z-index: 999; display: flex;
+            justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
         .modal {
             background: white; padding: 30px; border-radius: 20px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center;
-            width: 90%; max-width: 400px;
+            width: 90%; max-width: 400px; position: relative;
         }
+        
         .winner-title { font-size: 1.5em; margin-bottom: 10px; }
         .winner-name { font-size: 2.5em; color: #2ed573; margin: 10px 0; font-weight: 800; }
         .winner-num { font-size: 1.3em; color: #3498db; margin-bottom: 20px; font-weight: bold; }
-        .winner-msg { color: #555; font-size: 1.1em; margin-bottom: 25px; font-weight: 500; }
         .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
 
         details > summary { list-style: none; font-size: 1.5rem; cursor: pointer; color: #999; }
@@ -69,6 +98,7 @@
             position: absolute; right: 0; top: 40px; width: 280px;
             background: #fff; border: 1px solid #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             border-radius: 12px; padding: 15px; text-align: left; z-index: 100;
+            max-height: 80vh; overflow-y: auto; 
         }
         
         .player-item { padding: 8px 0; border-bottom: 1px solid #f5f5f5; display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; }
@@ -104,6 +134,13 @@
 
     <div id="submitScreen" class="container hidden">
         <button class="logout" onclick="logout()">登出</button>
+        
+        <div id="gallerySection" class="gallery-wrapper">
+            <h3 style="margin:0; font-size:1rem; color:#666;">🎁 本輪獎品</h3>
+            <div id="prizeGallery" class="gallery-container">
+                </div>
+        </div>
+
         <h2 id="welcomeText"></h2>
         
         <button onclick="togglePass('changePassSection')" style="background:#eee; color:#555; font-size:0.9em; width:auto;">🔑 改密碼</button>
@@ -124,6 +161,11 @@
     <div id="resultScreen" class="container hidden">
         <button class="logout" onclick="logout()">登出</button>
         
+        <div id="gallerySectionRes" class="gallery-wrapper">
+            <h3 style="margin:0; font-size:1rem; color:#666;">🎁 本輪獎品</h3>
+            <div id="prizeGalleryRes" class="gallery-container"></div>
+        </div>
+
         <div id="waitingView" class="hidden">
             <span class="status-icon">⏳</span>
             <h2>已參加！</h2>
@@ -151,6 +193,14 @@
                 <summary>⚙️</summary>
                 <div class="settings-dropdown">
                     <h4>高級設定</h4>
+                    
+                    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:10px;">
+                        <label>📸 獎品展示 (可多選):</label>
+                        <input type="file" id="prizeUpload" accept="image/*" multiple style="padding:5px; font-size:0.8em;">
+                        <button onclick="uploadPrize()" style="margin-top:5px; padding:8px; font-size:0.9em; background:#3498db;">更新展示</button>
+                        <button onclick="clearPrize()" style="margin-top:5px; padding:8px; font-size:0.9em; background:#95a5a6;">清除展示</button>
+                    </div>
+
                     <label>範圍:</label>
                     <div style="display:flex; gap:5px;">
                         <input type="number" id="adminMin" placeholder="Min">
@@ -173,6 +223,12 @@
         </div>
 
         <h2>👑 後台管理</h2>
+        
+        <div id="gallerySectionAdmin" class="gallery-wrapper">
+            <h3 style="margin:0; font-size:1rem; color:#666;">🎁 展示中</h3>
+            <div id="prizeGalleryAdmin" class="gallery-container"></div>
+        </div>
+
         <p>人數: <span id="playerCount">0</span></p>
 
         <div class="wheel-wrapper">
@@ -225,24 +281,19 @@
                 document.getElementById('adminScreen').classList.remove('hidden');
                 initWheel();
             } else {
-                // 🔥 核心修正：判斷是否已經在中獎名單中
                 if (data.isAlreadyWinner) {
-                    showResult(null, myUsername); // 直接顯示中獎
+                    showResult(null, myUsername);
                 } else if (data.hasSubmitted) {
                     showResult(data.submittedNumbers, data.lastWinner);
                 } else {
                     document.getElementById('submitScreen').classList.remove('hidden');
                     document.getElementById('welcomeText').innerText = `Hi, ${myUsername}`;
                 }
-                
                 if(data.isDefaultPass) document.getElementById('changePassSection').classList.remove('hidden');
             }
         });
 
-        // 監聽：如果在線時被踢除（中獎），直接切換畫面
-        socket.on('youAreMovedToWinner', () => {
-            showResult(null, myUsername);
-        });
+        socket.on('youAreMovedToWinner', () => { showResult(null, myUsername); });
 
         socket.on('loginError', (m) => { 
             document.getElementById('loginError').innerText = m; 
@@ -259,12 +310,10 @@
                 const numsStr = Array.isArray(numbers) ? numbers.join(', ') : numbers;
                 document.getElementById('mySelection').innerText = `你的選擇: ${numsStr}`;
             } else {
-                // 如果是已中獎狀態回來，可能不需要顯示數字，或顯示"已中獎"
                 document.getElementById('mySelection').innerText = ``;
             }
             
             if(winner === myUsername || winner === undefined) { 
-                // winner === undefined 代表是 isAlreadyWinner 觸發的
                 document.getElementById('waitingView').classList.add('hidden');
                 document.getElementById('winView').classList.remove('hidden');
                 document.getElementById('loseView').classList.add('hidden');
@@ -277,6 +326,66 @@
                 document.getElementById('waitingView').classList.remove('hidden');
             }
         }
+
+        // --- 多圖上傳邏輯 ---
+        function uploadPrize() {
+            const fileInput = document.getElementById('prizeUpload');
+            if(fileInput.files.length === 0) return alert("請先選擇圖片");
+            
+            const files = fileInput.files;
+            let imagesData = [];
+            let processed = 0;
+
+            // 讀取所有選中的檔案
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagesData.push(e.target.result);
+                    processed++;
+                    // 全部讀完後一次發送
+                    if(processed === files.length) {
+                        socket.emit('adminUploadImages', imagesData);
+                        alert(`已上傳 ${processed} 張圖片`);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function clearPrize() {
+            socket.emit('adminClearImages');
+            alert("已清除展示");
+        }
+
+        // --- 渲染圖片牆 (接收後端陣列) ---
+        socket.on('updatePrizeImages', (imagesArray) => {
+            const containers = [
+                document.getElementById('prizeGallery'), 
+                document.getElementById('prizeGalleryRes'),
+                document.getElementById('prizeGalleryAdmin')
+            ];
+            const wrappers = [
+                document.getElementById('gallerySection'),
+                document.getElementById('gallerySectionRes'),
+                document.getElementById('gallerySectionAdmin')
+            ];
+
+            if (imagesArray && imagesArray.length > 0) {
+                // 有圖片 -> 顯示容器並生成內容
+                wrappers.forEach(w => w.style.display = 'block');
+                
+                const htmlContent = imagesArray.map(src => 
+                    `<div class="gallery-item"><img src="${src}"></div>`
+                ).join('');
+
+                containers.forEach(c => c.innerHTML = htmlContent);
+            } else {
+                // 沒圖片 -> 隱藏容器
+                wrappers.forEach(w => w.style.display = 'none');
+                containers.forEach(c => c.innerHTML = '');
+            }
+        });
 
         function submitNum() { 
             const inputs = document.querySelectorAll('#dynamicInputs input');
